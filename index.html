@@ -1,0 +1,103 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker Pool Progress</title>
+    <style>
+        #progress-bar {
+            width: 100%;
+            background-color: #ccc;
+        }
+
+        #filler {
+            width: 0;
+            height: 30px;
+            background-color: #007bff;
+            transition: width 0.5s;
+        }
+
+        #controls {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Worker Pool Progress</h1>
+    <div>
+        <div id="progress-bar">
+            <div id="filler"></div>
+        </div>
+        <p id="status">Jobs in Progress: 0%</p>
+    </div>
+
+    <div id="controls">
+        <label for="workerCount">Worker Count:</label>
+        <input type="number" id="workerCount" value="45">
+        
+        <label for="jobCount">Job Count:</label>
+        <input type="number" id="jobCount" value="1000">
+        
+        <button id="startButton">Start Work</button>
+    </div>
+
+    <script>
+
+    const progressBar = document.getElementById("progress-bar");
+    const filler = document.getElementById("filler");
+    const status = document.getElementById("status");
+    const workerCountInput = document.getElementById("workerCount");
+    const jobCountInput = document.getElementById("jobCount");
+    const startButton = document.getElementById("startButton");
+    let socket = null;
+
+function startWork() {
+    if (socket !== null) {
+        socket.close();
+    }
+
+    const workerCount = parseInt(workerCountInput.value);
+    const jobCount = parseInt(jobCountInput.value);
+
+    const socketUrl = `ws://192.180.4.47:8080/socket?JobCount=${jobCount}&WorkerCount=${workerCount}`;
+    //ws://fbce-112-196-113-2.ngrok.io/socket?JobCount=100&WorkerCount=10
+    socket = new WebSocket(socketUrl);
+
+    socket.onmessage = (event) => {
+        const message = event.data;
+        if (message.startsWith("Job")) {
+            const jobNumber = parseInt(message.split(" ")[1]);
+            let progress = (jobNumber / jobCount) * 100;
+
+            // Ensure progress doesn't exceed 100%
+            if (progress >= 100) {
+                progress = 100;
+            }
+
+            filler.style.width = progress + "%";
+            status.textContent = `Jobs in Progress: ${progress.toFixed(2)}%`;
+        }
+    };
+
+    socket.onclose = (event) => {
+        if (event.code === 1000) {
+            // Complete the progress to 100% when all jobs are completed
+            filler.style.width = "100%";
+            status.textContent = "All jobs completed!";
+        } else {
+
+            console.log(event.code)
+            status.textContent = "Connection closed unexpectedly";
+        }
+    };
+}
+
+startButton.addEventListener("click", startWork);
+
+    </script>
+</body>
+</html>
+
